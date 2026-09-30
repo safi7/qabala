@@ -2,6 +2,8 @@
 
 import type { DocType, QabalaFormData, LandProperty, HouseProperty, ShopProperty, VehicleProperty, GardenProperty } from '@/lib/types';
 import type { Translations } from '@/lib/translations';
+import { formatDeedDate } from '@/lib/hijri';
+import { formatAreaLine } from '@/lib/area';
 
 interface QabalaDocumentProps {
   data: QabalaFormData;
@@ -54,6 +56,19 @@ export default function QabalaDocument({ data, docType, tr }: QabalaDocumentProp
   const vp = prop as VehicleProperty;
   const gp = prop as GardenProperty;
 
+  const localeCode = tr.lang as string;
+  const deedLang = localeCode === 'en' ? 'english' : localeCode === 'ps' ? 'pashto' : 'dari';
+  const areaText = (value: { area?: string; areaJerib?: string; areaBiswa?: string; areaUnit?: string }) =>
+    formatAreaLine(
+      value,
+      {
+        meters: tr.options.areaUnits[0],
+        jerib: tr.options.areaUnits[1],
+        biswa: tr.options.areaUnits[2],
+        and: deedLang === 'english' ? 'and' : 'و',
+      },
+      deedLang !== 'english',
+    );
   const sellers = data.sellers ?? [];
   const buyers = data.buyers ?? [];
   const witnesses = data.witnesses ?? [];
@@ -72,7 +87,7 @@ export default function QabalaDocument({ data, docType, tr }: QabalaDocumentProp
         padding: '8mm 10mm',
         fontSize: '12px',
         lineHeight: '1.7',
-        fontFamily: 'var(--font-amiri-var), Amiri, Scheherazade New, serif',
+        fontFamily: 'var(--font-amiri-var), Amiri, Georgia, serif',
         background: '#FFFCF0',
         color: '#1A1000',
         boxSizing: 'border-box',
@@ -114,7 +129,7 @@ export default function QabalaDocument({ data, docType, tr }: QabalaDocumentProp
           <div className="flex justify-center gap-6 mt-1 text-[10px]">
             <span><strong>{doc.docNumber}:</strong> {data.documentNumber}</span>
             <span className="text-[#8B6914]">✦</span>
-            <span><strong>{doc.date}:</strong> {data.date}</span>
+            <span><strong>{doc.date}:</strong> {formatDeedDate(data.date, deedLang)}</span>
           </div>
         </div>
 
@@ -197,7 +212,7 @@ export default function QabalaDocument({ data, docType, tr }: QabalaDocumentProp
               <Row label={f.marketName} value={sp.marketName} className="col-span-2" />
               <Row label={f.shopNumber} value={sp.shopNumber} />
               <Row label={f.floor} value={sp.floor} />
-              <Row label={f.area} value={`${sp.area} ${sp.areaUnit}`} />
+              <Row label={f.area} value={areaText(sp)} className="col-span-2" />
             </div>
           </div>
         ) : (
@@ -208,7 +223,7 @@ export default function QabalaDocument({ data, docType, tr }: QabalaDocumentProp
               <Row label={f.village} value={lp.village} />
               {lp.blockNumber && <Row label={f.blockNumber} value={lp.blockNumber} />}
               {lp.lotNumber && <Row label={f.lotNumber} value={lp.lotNumber} />}
-              <Row label={f.area} value={`${lp.area} ${lp.areaUnit}`} />
+              <Row label={f.area} value={areaText(lp)} className="col-span-2" />
               <Row label={f.landType} value={lp.landType} />
               {lp.previousDeedNumber && <Row label={f.previousDeedNumber} value={lp.previousDeedNumber} />}
             </div>
@@ -290,6 +305,7 @@ export default function QabalaDocument({ data, docType, tr }: QabalaDocumentProp
 
         {/* ── SIGNATURE BOXES ── */}
         <div className="mt-auto pt-2 border-t-2 border-[#8B6914]">
+          <p className="text-[8px] text-center text-gray-600 leading-tight mb-1">{doc.sampleNotice}</p>
           <div className="flex justify-between items-end">
             <SigBox label={doc.sellerSig} />
             <div className="text-center">

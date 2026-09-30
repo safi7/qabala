@@ -1,32 +1,34 @@
 import type { Metadata, Viewport } from 'next';
-import { Amiri, Noto_Sans_Arabic } from 'next/font/google';
-import { LanguageProvider } from '@/context/LanguageContext';
+import { headers } from 'next/headers';
+import { Amiri } from 'next/font/google';
+import { GoogleAnalytics } from '@next/third-parties/google';
 import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar';
+import { isLocale, SITE_URL } from '@/lib/locales';
 import './globals.css';
 
-const amiri = Amiri({
-  subsets: ['arabic', 'latin'],
-  weight: ['400', '700'],
-  style: ['normal', 'italic'],
-  variable: '--font-amiri-var',
-  display: 'swap',
-});
+const GA_ID = 'G-20298ZC24T';
 
-const notoSansArabic = Noto_Sans_Arabic({
+const amiri = Amiri({
   subsets: ['arabic'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-noto-arabic-var',
+  weight: ['400', '700'],
   display: 'swap',
+  preload: true,
+  variable: '--font-amiri-var',
 });
 
 export const metadata: Metadata = {
-  title: 'قباله — Qabala System',
-  description: 'Generate official Afghan property and asset transfer deeds in Dari, Pashto, and English',
-  manifest: '/manifest.json',
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: 'نمونه قباله',
+    template: '%s',
+  },
+  description:
+    'نمونه قباله زمین، خانه، دکان، موتر و باغ برای چاپ و امضا در افغانستان. سند دولتی نیست.',
+  manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Qabala',
+    title: 'قباله',
   },
   icons: {
     icon: [
@@ -43,14 +45,18 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const headerList = await headers();
+  const requested = headerList.get('x-locale') ?? 'ps';
+  const lang = isLocale(requested) ? requested : 'ps';
+  const dir = lang === 'en' ? 'ltr' : 'rtl';
+
   return (
-    <html className={`${amiri.variable} ${notoSansArabic.variable}`} suppressHydrationWarning>
+    <html lang={lang} dir={dir} className={amiri.variable} suppressHydrationWarning>
       <body className="min-h-screen bg-[#0A3D22] antialiased">
-        <LanguageProvider>
-          <ServiceWorkerRegistrar />
-          {children}
-        </LanguageProvider>
+        <ServiceWorkerRegistrar />
+        {children}
+        {process.env.NODE_ENV === 'production' && <GoogleAnalytics gaId={GA_ID} />}
       </body>
     </html>
   );

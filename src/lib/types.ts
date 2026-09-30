@@ -21,6 +21,8 @@ export interface LandProperty {
   lotNumber: string;
   area: string;
   areaUnit: string;
+  areaJerib?: string;
+  areaBiswa?: string;
   landType: string;
   previousDeedNumber: string;
   boundaryNorth: string;
@@ -44,6 +46,8 @@ export interface ShopProperty {
   floor: string;
   area: string;
   areaUnit: string;
+  areaJerib?: string;
+  areaBiswa?: string;
   boundaryNorth: string;
   boundarySouth: string;
   boundaryEast: string;

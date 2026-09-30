@@ -1,8 +1,9 @@
 'use client';
 
-import { type UseFormRegister, type FieldErrors } from 'react-hook-form';
+import { type UseFormRegister, type FieldErrors, type UseFormSetValue, type UseFormGetValues } from 'react-hook-form';
 import { useLanguage } from '@/context/LanguageContext';
 import { PROVINCES } from '@/lib/translations';
+import { jeribToMeters, metersToJerib, parseLocalizedNumber } from '@/lib/area';
 import type { DocType } from '@/lib/types';
 import { FormField, Input, Select } from './FormField';
 
@@ -12,6 +13,10 @@ interface PropertySectionProps {
   register: UseFormRegister<any>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   errors: FieldErrors<any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  setValue: UseFormSetValue<any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  getValues: UseFormGetValues<any>;
 }
 
 function BoundaryFields({ register, errors, f }: { register: PropertySectionProps['register']; errors: PropertySectionProps['errors']; f: Record<string, string> }) {
@@ -57,7 +62,73 @@ function LocationFields({ register, errors, f, lang }: { register: PropertySecti
   );
 }
 
-export default function PropertySection({ docType, register, errors }: PropertySectionProps) {
+function AreaFields({ register, errors, setValue, getValues, metersLabel, jeribLabel, biswaLabel, note }: {
+  register: PropertySectionProps['register'];
+  errors: PropertySectionProps['errors'];
+  setValue: PropertySectionProps['setValue'];
+  getValues: PropertySectionProps['getValues'];
+  metersLabel: string;
+  jeribLabel: string;
+  biswaLabel: string;
+  note: string;
+}) {
+  const pe = (errors.property ?? {}) as Record<string, { message?: string }>;
+
+  const syncFromMeters = (raw: string) => {
+    const meters = parseLocalizedNumber(raw);
+    if (meters === null) {
+      setValue('property.areaJerib', '');
+      setValue('property.areaBiswa', '');
+      return;
+    }
+    const parts = metersToJerib(meters);
+    setValue('property.areaJerib', String(parts.jerib));
+    setValue('property.areaBiswa', String(parts.biswa));
+  };
+
+  const syncFromJerib = (field: 'areaJerib' | 'areaBiswa', raw: string) => {
+    const jerib = field === 'areaJerib'
+      ? (parseLocalizedNumber(raw) ?? 0)
+      : (parseLocalizedNumber(String(getValues('property.areaJerib') ?? '')) ?? 0);
+    const biswa = field === 'areaBiswa'
+      ? (parseLocalizedNumber(raw) ?? 0)
+      : (parseLocalizedNumber(String(getValues('property.areaBiswa') ?? '')) ?? 0);
+    setValue('property.area', String(jeribToMeters(jerib, biswa)));
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <FormField label={jeribLabel} required={false}>
+          <Input
+            type="text"
+            inputMode="decimal"
+            {...register('property.areaJerib', { onChange: (event) => syncFromJerib('areaJerib', event.target.value) })}
+          />
+        </FormField>
+        <FormField label={biswaLabel} required={false}>
+          <Input
+            type="text"
+            inputMode="decimal"
+            {...register('property.areaBiswa', { onChange: (event) => syncFromJerib('areaBiswa', event.target.value) })}
+          />
+        </FormField>
+        <FormField label={metersLabel} error={pe.area}>
+          <Input
+            type="text"
+            inputMode="decimal"
+            {...register('property.area', { onChange: (event) => syncFromMeters(event.target.value) })}
+            error={!!pe.area}
+          />
+        </FormField>
+      </div>
+      <p className="text-xs text-gray-500">{note}</p>
+      <input type="hidden" {...register('property.areaUnit')} />
+    </div>
+  );
+}
+
+export default function PropertySection({ docType, register, errors, setValue, getValues }: PropertySectionProps) {
   const { lang, tr } = useLanguage();
   const f = { ...tr.fields, boundaries: tr.sections.boundaries };
   const pe = (errors.property ?? {}) as Record<string, { message?: string }>;
@@ -131,6 +202,16 @@ export default function PropertySection({ docType, register, errors }: PropertyS
     <div className="space-y-5">
       <SectionHeader label={tr.sections.propertyDetails} />
       <LocationFields register={register} errors={errors} f={f} lang={lang} />
+      <AreaFields
+        register={register}
+        errors={errors}
+        setValue={setValue}
+        getValues={getValues}
+        metersLabel={tr.options.areaUnits[0]}
+        jeribLabel={tr.options.areaUnits[1]}
+        biswaLabel={tr.options.areaUnits[2]}
+        note={tr.areaNote}
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <FormField label={`${f.blockNumber} (${lang === 'english' ? 'optional' : lang === 'pashto' ? 'اختیاري' : 'اختیاری'})`} required={false} error={pe.blockNumber as { message?: string } | undefined}>
@@ -138,12 +219,6 @@ export default function PropertySection({ docType, register, errors }: PropertyS
         </FormField>
         <FormField label={`${f.lotNumber} (${lang === 'english' ? 'optional' : lang === 'pashto' ? 'اختیاري' : 'اختیاری'})`} required={false} error={pe.lotNumber as { message?: string } | undefined}>
           <Input {...register('property.lotNumber')} error={!!pe.lotNumber} />
-        </FormField>
-        <FormField label={f.area} error={pe.area as { message?: string } | undefined}>
-          <Input type="text" inputMode="numeric" {...register('property.area')} error={!!pe.area} />
-        </FormField>
-        <FormField label={f.areaUnit} error={pe.areaUnit as { message?: string } | undefined}>
-          <Select options={tr.options.areaUnits as unknown as string[]} placeholder="—" {...register('property.areaUnit')} />
         </FormField>
         <FormField label={f.landType} error={pe.landType as { message?: string } | undefined}>
           <Select options={tr.options.landTypes as unknown as string[]} placeholder="—" {...register('property.landType')} />

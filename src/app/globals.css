@@ -15,7 +15,7 @@
 
 /* Font stacks per language */
 [dir="rtl"] body {
-  font-family: var(--font-noto-arabic-var), var(--font-amiri-var), 'Amiri', 'Scheherazade New', 'Traditional Arabic', sans-serif;
+  font-family: var(--font-amiri-var), 'Amiri', 'Traditional Arabic', serif;
   font-size: 17px;
 }
 
@@ -65,7 +65,7 @@
 
 /* ── Document base styling ───────────────────── */
 .qabala-document {
-  font-family: var(--font-amiri-var), 'Amiri', 'Scheherazade New', serif;
+  font-family: var(--font-amiri-var), 'Amiri', Georgia, serif;
   background: var(--color-document);
   color: #1a1a1a;
   direction: inherit;

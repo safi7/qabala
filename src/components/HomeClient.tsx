@@ -56,7 +56,7 @@ const CATEGORY_COLORS: Record<DocType, string> = {
 const ALL_TYPES: DocType[] = ['land', 'house', 'shop', 'vehicle', 'garden'];
 
 export default function HomeClient() {
-  const { lang, tr } = useLanguage();
+  const { lang, locale, tr } = useLanguage();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#061A0F] via-[#0A3D22] to-[#0D4A2A] relative overflow-hidden">
@@ -106,14 +106,9 @@ export default function HomeClient() {
             className="text-white text-4xl md:text-5xl font-bold mb-2"
             style={{ fontFamily: 'var(--font-amiri-var), Amiri, serif' }}
           >
-            {lang === 'english' ? 'Qabala' : lang === 'pashto' ? 'قباله' : 'قباله'}
+            {tr.homeTitle}
           </h1>
-          <p className="text-white/60 text-sm md:text-base mt-1">{tr.appSubtitle}</p>
-          <p className="text-white/40 text-xs mt-2">
-            {lang !== 'dari' && 'سیستم قباله · '}
-            {lang !== 'pashto' && 'د قباله سیستم · '}
-            {lang !== 'english' && 'Qabala System'}
-          </p>
+          <p className="text-white/70 text-sm md:text-base mt-2 max-w-xl mx-auto leading-relaxed">{tr.disclaimer}</p>
         </div>
 
         {/* Select label */}
@@ -173,7 +168,7 @@ export default function HomeClient() {
               {/* Action buttons */}
               <div className={`flex items-center gap-2 ${lang !== 'english' ? 'flex-row-reverse' : ''}`}>
                 <Link
-                  href={`/${type}`}
+                  href={`/${locale}/${type}`}
                   className="flex items-center gap-1 bg-[#C8972A] hover:bg-[#B8872A] text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-all"
                 >
                   <svg className={`w-3.5 h-3.5 ${lang !== 'english' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -182,7 +177,7 @@ export default function HomeClient() {
                   <span>{lang === 'english' ? 'Create' : lang === 'pashto' ? 'جوړول' : 'ایجاد'}</span>
                 </Link>
                 <Link
-                  href={`/${type}?demo=1`}
+                  href={`/${locale}/${type}?demo=1`}
                   className="flex items-center gap-1 bg-white/10 hover:bg-white/20 text-white/80 hover:text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-all border border-white/20"
                   style={{ fontFamily: 'var(--font-amiri-var), Amiri, serif' }}
                 >
@@ -199,12 +194,8 @@ export default function HomeClient() {
 
         {/* Footer */}
         <footer className="mt-12 flex flex-col items-center gap-2">
-          <p className="text-white/25 text-xs text-center max-w-md leading-relaxed">
-            {lang === 'english'
-              ? 'All documents are generated locally. No data is sent to any server.'
-              : lang === 'pashto'
-              ? 'ټول اسناد په محلي توګه جوړیږي. هیڅ معلومات سرور ته نه لیږل کیږي.'
-              : 'تمام اسناد به صورت محلی تهیه می‌شوند. هیچ اطلاعاتی به سرور ارسال نمی‌شود.'}
+          <p className="text-white/40 text-xs text-center max-w-md leading-relaxed">
+            {tr.footerNote}
           </p>
           <p className="text-white/20 text-xs text-center">
             {lang === 'english'

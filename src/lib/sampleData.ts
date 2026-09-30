@@ -1,7 +1,7 @@
 import type { DocType, QabalaFormData } from './types';
+import { formatShamsiNumeric } from './hijri';
 
-const today = new Date();
-const sampleDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+const sampleDate = formatShamsiNumeric(new Date());
 
 const SELLER = {
   fullName: 'عبدالستار محمدزی',
@@ -51,6 +51,8 @@ export const SAMPLE_DATA: Record<DocType, QabalaFormData> = {
       lotNumber: '۲۰۵',
       area: '۶۰۰',
       areaUnit: 'متر مربع',
+      areaJerib: '0',
+      areaBiswa: '6',
       landType: 'مسکونی',
       previousDeedNumber: '',
       boundaryNorth: 'سرک عمومی به عرض ۸ متر',
@@ -70,6 +72,8 @@ export const SAMPLE_DATA: Record<DocType, QabalaFormData> = {
       lotNumber: '۸۸',
       area: '۳۵۰',
       areaUnit: 'متر مربع',
+      areaJerib: '0',
+      areaBiswa: '3',
       landType: 'مسکونی',
       previousDeedNumber: '',
       rooms: '6',
@@ -123,8 +127,10 @@ export const SAMPLE_DATA: Record<DocType, QabalaFormData> = {
       village: 'قلعه حیدر',
       blockNumber: 'A-۱',
       lotNumber: '۱۲',
-      area: '۲۰۰۰',
-      areaUnit: 'جریب',
+      area: '۴۰۰۰',
+      areaUnit: 'متر مربع',
+      areaJerib: '2',
+      areaBiswa: '0',
       landType: 'باغداری',
       previousDeedNumber: '',
       treeCount: '۱۵۰',

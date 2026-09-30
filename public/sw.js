@@ -1,5 +1,10 @@
-const CACHE_NAME = 'qabala-v2';
-const PRECACHE_PAGES = ['/', '/land', '/house', '/shop', '/vehicle', '/garden'];
+const CACHE_NAME = 'qabala-v3';
+const LOCALES = ['ps', 'fa', 'en'];
+const TYPES = ['land', 'house', 'shop', 'vehicle', 'garden'];
+const PRECACHE_PAGES = [
+  ...LOCALES.map((locale) => `/${locale}`),
+  ...LOCALES.flatMap((locale) => TYPES.map((type) => `/${locale}/${type}`)),
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -21,6 +26,7 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin) return;
 
   // Next.js static assets: cache-first (they're content-hashed, never stale)
   if (url.pathname.startsWith('/_next/static/')) {

@@ -1,15 +1,16 @@
 'use client';
 
-import { useState, useRef, useEffect, Suspense } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useReactToPrint } from 'react-to-print';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useLanguage } from '@/context/LanguageContext';
 import type { DocType, QabalaFormData } from '@/lib/types';
-import { schemas, STEP_FIELDS } from '@/lib/schemas';
+import { getSchema, fieldsForStep } from '@/lib/schemas';
 import { SAMPLE_DATA } from '@/lib/sampleData';
+import { formatShamsiNumeric, describeDeedDate } from '@/lib/hijri';
+import { elementToPdfBlob, downloadBlob, sharePdfFile } from '@/lib/pdf';
 import LanguageSelector from './LanguageSelector';
 import PersonSection from './forms/PersonSection';
 import PropertySection from './forms/PropertySection';
@@ -19,6 +20,7 @@ import { FormField, Input, Select, Textarea } from './forms/FormField';
 
 interface QabalaWorkflowProps {
   docType: DocType;
+  isDemo?: boolean;
 }
 
 const TOTAL_STEPS = 5;
@@ -47,30 +49,28 @@ function StepIndicator({ current, labels, dir }: { current: number; labels: read
   );
 }
 
-function QabalaWorkflowInner({ docType }: QabalaWorkflowProps) {
-  const { lang, tr } = useLanguage();
-  const searchParams = useSearchParams();
-  const isDemo = searchParams.get('demo') === '1';
+function QabalaWorkflowInner({ docType, isDemo = false }: QabalaWorkflowProps) {
+  const { lang, locale, tr } = useLanguage();
   const [step, setStep] = useState(0);
   const [preview, setPreview] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState<'download' | 'whatsapp' | null>(null);
   const docRef = useRef<HTMLDivElement>(null);
 
-  const today = new Date();
-  const defaultDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const schema = useMemo(() => getSchema(docType, lang), [docType, lang]);
 
-  const { register, trigger, reset, getValues, setValue, control, formState: { errors } } = useForm({
+  const { register, trigger, reset, getValues, setValue, watch, clearErrors, control, formState: { errors } } = useForm({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(schemas[docType] as any),
+    resolver: zodResolver(schema as any),
     defaultValues: {
       documentNumber: '',
-      date: defaultDate,
+      date: formatShamsiNumeric(new Date()),
       amount: '',
       amountWords: '',
       currency: tr.options.currencies[0],
       sellers: [{ fullName: '', fatherName: '', grandfatherName: '', tazkiraNumber: '' }],
       buyers: [{ fullName: '', fatherName: '', grandfatherName: '', tazkiraNumber: '' }],
-      property: {},
+      property: { areaUnit: tr.options.areaUnits[0], areaJerib: '', areaBiswa: '' },
       witnesses: [{ fullName: '', fatherName: '' }, { fullName: '', fatherName: '' }],
       declarationText: '',
       notes: '',
@@ -96,10 +96,11 @@ function QabalaWorkflowInner({ docType }: QabalaWorkflowProps) {
   // Set declarationText from translation when lang changes
   useEffect(() => {
     setValue('declarationText' as never, tr.document.sellerDeclaration as never);
-  }, [lang, tr.document.sellerDeclaration, setValue]);
+    clearErrors();
+  }, [lang, tr.document.sellerDeclaration, setValue, clearErrors]);
 
   const handleNext = async () => {
-    const fields = STEP_FIELDS[step] ?? [];
+    const fields = fieldsForStep(docType, step);
     const ok = await trigger(fields as Parameters<typeof trigger>[0]);
     if (ok) setStep((s) => Math.min(s + 1, TOTAL_STEPS - 1));
   };
@@ -110,7 +111,7 @@ function QabalaWorkflowInner({ docType }: QabalaWorkflowProps) {
   };
 
   const handleGeneratePreview = async () => {
-    const fields = STEP_FIELDS[3] ?? [];
+    const fields = fieldsForStep(docType, 3);
     const ok = await trigger(fields as Parameters<typeof trigger>[0]);
     if (ok) setPreview(true);
   };
@@ -141,6 +142,19 @@ function QabalaWorkflowInner({ docType }: QabalaWorkflowProps) {
     onAfterPrint: () => setSaving(false),
   });
 
+  const handlePdf = async (mode: 'download' | 'whatsapp') => {
+    if (!docRef.current) return;
+    setPdfBusy(mode);
+    try {
+      const blob = await elementToPdfBlob(docRef.current);
+      const filename = `qabala-${docType}.pdf`;
+      if (mode === 'whatsapp') await sharePdfFile(blob, filename, tr.shareText);
+      else downloadBlob(blob, filename);
+    } finally {
+      setPdfBusy(null);
+    }
+  };
+
   const formData = getValues() as QabalaFormData;
 
   return (
@@ -148,7 +162,7 @@ function QabalaWorkflowInner({ docType }: QabalaWorkflowProps) {
       {/* Header */}
       <header className="no-print sticky top-0 z-20 bg-[#0A3D22]/90 backdrop-blur border-b border-white/10 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3" dir={tr.dir}>
-          <Link href="/" className="text-white/60 hover:text-white transition-colors text-sm">
+          <Link href={`/${locale}`} className="text-white/60 hover:text-white transition-colors text-sm">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
@@ -166,7 +180,10 @@ function QabalaWorkflowInner({ docType }: QabalaWorkflowProps) {
       <main className={`${preview ? '' : 'no-print '}max-w-3xl mx-auto px-4 py-6`}>
         {!preview ? (
           <>
-            {/* Step indicator */}
+            <div className="mb-4 space-y-2" dir={tr.dir}>
+              <p className="text-white/75 text-sm leading-relaxed">{tr.categoryDesc[docType]}</p>
+              <p className="text-[#E0B84A] text-xs leading-relaxed">{tr.disclaimer}</p>
+            </div>
             <div className="mb-6">
               <StepIndicator current={step} labels={tr.steps} dir={tr.dir} />
             </div>
@@ -217,20 +234,30 @@ function QabalaWorkflowInner({ docType }: QabalaWorkflowProps) {
                         <FormField label={tr.fields.documentNumber} error={errors.documentNumber as { message?: string }}>
                           <Input {...register('documentNumber')} error={!!errors.documentNumber} />
                         </FormField>
-                        <FormField label={tr.fields.date} error={errors.date as { message?: string }}>
+                        <FormField label={tr.hijriLabel} error={errors.date as { message?: string }}>
                           <Input
                             type="text"
                             inputMode="numeric"
-                            placeholder="YYYY-MM-DD"
+                            dir="ltr"
+                            placeholder="1405/07/08"
                             {...register('date')}
                             error={!!errors.date}
                           />
+                          {describeDeedDate(String(watch('date') ?? ''), lang) && (
+                            <p className="text-xs text-gray-500 mt-1">{describeDeedDate(String(watch('date') ?? ''), lang)}</p>
+                          )}
                         </FormField>
                       </div>
                     </div>
 
                     {/* Property details */}
-                    <PropertySection docType={docType} register={register} errors={errors} />
+                    <PropertySection
+                      docType={docType}
+                      register={register}
+                      errors={errors}
+                      setValue={setValue}
+                      getValues={getValues}
+                    />
 
                     {/* Transaction */}
                     <div>
@@ -345,17 +372,27 @@ function QabalaWorkflowInner({ docType }: QabalaWorkflowProps) {
                 {tr.buttons.print}
               </button>
               <button
-                onClick={() => handlePrint()}
-                disabled={saving}
+                onClick={() => handlePdf('download')}
+                disabled={pdfBusy !== null}
                 className="flex items-center gap-2 px-5 py-2 rounded-lg bg-[#C8972A] text-white hover:bg-[#B8882A] transition-all text-sm font-medium disabled:opacity-60"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                {saving ? '...' : tr.buttons.download}
+                {pdfBusy === 'download' ? '...' : tr.buttons.download}
+              </button>
+              <button
+                onClick={() => handlePdf('whatsapp')}
+                disabled={pdfBusy !== null}
+                className="flex items-center gap-2 px-5 py-2 rounded-lg bg-[#128C7E] text-white hover:bg-[#0E6F64] transition-all text-sm font-medium disabled:opacity-60"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M20.5 3.5A11 11 0 0 0 2.1 16.8L1 22.5l5.9-1.1A11 11 0 0 0 20.5 3.5zm-8.5 17a9.1 9.1 0 0 1-4.6-1.3l-.3-.2-3.5.6.6-3.4-.2-.3A9.1 9.1 0 1 1 12 20.5zm5-6.8c-.3-.1-1.6-.8-1.8-.9s-.4-.1-.6.1-.7.9-.8 1-.3.2-.6.1a7.4 7.4 0 0 1-2.2-1.4 8.2 8.2 0 0 1-1.5-1.9c-.2-.3 0-.4.1-.6l.4-.5.2-.3a.5.5 0 0 0 0-.5c0-.1-.6-1.5-.8-2s-.4-.5-.6-.5h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.8 11.8 11.8 0 0 0 4.5 4 15 15 0 0 0 1.5.6 3.6 3.6 0 0 0 1.7.1 2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .2-1.3c-.1-.1-.3-.2-.6-.3z" />
+                </svg>
+                {pdfBusy === 'whatsapp' ? '...' : tr.buttons.whatsapp}
               </button>
               <Link
-                href="/"
+                href={`/${locale}`}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 text-white border border-white/20 hover:bg-white/20 transition-all text-sm"
               >
                 {tr.buttons.newDoc}
@@ -370,15 +407,12 @@ function QabalaWorkflowInner({ docType }: QabalaWorkflowProps) {
             </div>
           </div>
         )}
+        <p className="no-print text-white/40 text-xs text-center mt-6 max-w-md mx-auto leading-relaxed">{tr.footerNote}</p>
       </main>
     </div>
   );
 }
 
-export default function QabalaWorkflow({ docType }: QabalaWorkflowProps) {
-  return (
-    <Suspense fallback={<div className="min-h-screen bg-[#061A0F]" />}>
-      <QabalaWorkflowInner docType={docType} />
-    </Suspense>
-  );
+export default function QabalaWorkflow({ docType, isDemo = false }: QabalaWorkflowProps) {
+  return <QabalaWorkflowInner docType={docType} isDemo={isDemo} />;
 }

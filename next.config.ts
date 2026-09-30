@@ -1,6 +1,17 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    const types = ['land', 'house', 'shop', 'vehicle', 'garden'];
+    return [
+      { source: '/', destination: '/ps', permanent: true },
+      ...types.map((type) => ({
+        source: `/${type}`,
+        destination: `/ps/${type}`,
+        permanent: true,
+      })),
+    ];
+  },
   async headers() {
     return [
       {
