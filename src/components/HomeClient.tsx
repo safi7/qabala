@@ -108,6 +108,7 @@ export default function HomeClient() {
           >
             {tr.homeTitle}
           </h1>
+          <p className="text-white/80 text-sm md:text-base mt-2 max-w-xl mx-auto leading-relaxed">{tr.findLine}</p>
           <p className="text-white/70 text-sm md:text-base mt-2 max-w-xl mx-auto leading-relaxed">{tr.disclaimer}</p>
         </div>
 

@@ -4,19 +4,19 @@ import type { DocType } from './types';
 
 const HOME: Record<Locale, { title: string; description: string }> = {
   ps: {
-    title: 'نمونه قباله | ځمکه، کور، دوکان او موټر',
+    title: 'آنلاین قباله | د ځمکې او موټر نمونه',
     description:
-      'د افغانستان لپاره د ځمکې، کور، دوکان، موټر او باغ د قبالې نمونه. په پښتو، دري او انګلیسي کې د چاپ او لاسلیک لپاره. دا دولتي سند نه دی او په محکمه، د ځمکو اداره یا شاروالۍ کې نه ثبتیږي.',
+      'د قبالې آنلاین ویبپاڼه: د ځمکې، کور، دوکان، موټر او باغ نمونه په پښتو او دري کې په تلیفون جوړه او چاپ کړئ. دولتي سند نه دی.',
   },
   fa: {
-    title: 'نمونه قباله | قباله زمین، خانه و موتر',
+    title: 'قباله آنلاین | نمونه قباله زمین و موتر',
     description:
-      'نمونه قباله زمین، خانه، دکان، موتر و باغ برای چاپ و امضا در افغانستان. به دری، پشتو و انگلیسی. این سند دولتی نیست و در محکمه، اداره اراضی یا شاروالی ثبت نمی‌شود.',
+      'وبسایت قباله آنلاین برای ساخت و چاپ نمونه قباله زمین، خانه، دکان و موتر در افغانستان. سند دولتی نیست.',
   },
   en: {
-    title: 'Sample Qabala for Afghanistan | Land, house, vehicle',
+    title: 'Qabala online | Afghan deed website',
     description:
-      'Print a sample Afghan qabala for land, house, shop, vehicle, or garden in Pashto, Dari, and English. For signing on paper. Not a court, Arazi, or municipal document.',
+      'Qabala online: a website to make a sample Afghan deed for land, house, shop, or vehicle, then print and sign it. Not a government document.',
   },
 };
 

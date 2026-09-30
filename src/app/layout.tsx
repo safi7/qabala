@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     template: '%s',
   },
   description:
-    'نمونه قباله زمین، خانه، دکان، موتر و باغ برای چاپ و امضا در افغانستان. سند دولتی نیست.',
+    'قباله آنلاین: نمونه قباله زمین، خانه، دکان و موتر برای چاپ و امضا در افغانستان. سند دولتی نیست.',
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
