@@ -8,9 +8,9 @@ import Link from 'next/link';
 import { useLanguage } from '@/context/LanguageContext';
 import type { DocType, QabalaFormData } from '@/lib/types';
 import { getSchema, fieldsForStep } from '@/lib/schemas';
-import { SAMPLE_DATA } from '@/lib/sampleData';
+import { sampleFor } from '@/lib/sampleData';
 import { formatShamsiNumeric, describeDeedDate } from '@/lib/hijri';
-import { elementToPdfBlob, downloadBlob, sharePdfFile } from '@/lib/pdf';
+import { downloadBlob, sharePdfFile } from '@/lib/pdf';
 import LanguageSelector from './LanguageSelector';
 import PersonSection from './forms/PersonSection';
 import PropertySection from './forms/PropertySection';
@@ -55,6 +55,7 @@ function QabalaWorkflowInner({ docType, isDemo = false }: QabalaWorkflowProps) {
   const [preview, setPreview] = useState(false);
   const [saving, setSaving] = useState(false);
   const [pdfBusy, setPdfBusy] = useState<'download' | 'whatsapp' | null>(null);
+  const [pdfError, setPdfError] = useState('');
   const docRef = useRef<HTMLDivElement>(null);
 
   const schema = useMemo(() => getSchema(docType, lang), [docType, lang]);
@@ -93,11 +94,16 @@ function QabalaWorkflowInner({ docType, isDemo = false }: QabalaWorkflowProps) {
     name: 'witnesses' as never,
   });
 
-  // Set declarationText from translation when lang changes
   useEffect(() => {
-    setValue('declarationText' as never, tr.document.sellerDeclaration as never);
+    if (isDemo) {
+      reset(sampleFor(lang, docType) as Parameters<typeof reset>[0]);
+      setPreview(true);
+    }
+    setTimeout(() => {
+      setValue('declarationText' as never, tr.document.sellerDeclaration as never);
+    }, 0);
     clearErrors();
-  }, [lang, tr.document.sellerDeclaration, setValue, clearErrors]);
+  }, [lang, docType, isDemo, tr.document.sellerDeclaration, setValue, clearErrors, reset]);
 
   const handleNext = async () => {
     const fields = fieldsForStep(docType, step);
@@ -116,21 +122,6 @@ function QabalaWorkflowInner({ docType, isDemo = false }: QabalaWorkflowProps) {
     if (ok) setPreview(true);
   };
 
-  const handleLoadDemo = () => {
-    const sample = SAMPLE_DATA[docType];
-    reset(sample as Parameters<typeof reset>[0]);
-    // Re-apply declaration text from current lang after reset
-    setTimeout(() => {
-      setValue('declarationText' as never, tr.document.sellerDeclaration as never);
-    }, 0);
-    setPreview(true);
-  };
-
-  useEffect(() => {
-    if (isDemo) handleLoadDemo();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const handlePrint = useReactToPrint({
     contentRef: docRef,
     documentTitle: `qabala-${docType}`,
@@ -143,13 +134,36 @@ function QabalaWorkflowInner({ docType, isDemo = false }: QabalaWorkflowProps) {
   });
 
   const handlePdf = async (mode: 'download' | 'whatsapp') => {
-    if (!docRef.current) return;
+    setPdfError('');
+    const ok = await trigger();
+    if (!ok) {
+      for (const candidate of [0, 1, 2, 3]) {
+        const fields = fieldsForStep(docType, candidate);
+        const stepOk = await trigger(fields as Parameters<typeof trigger>[0]);
+        if (!stepOk) {
+          setPreview(false);
+          setStep(candidate);
+          return;
+        }
+      }
+      setPreview(false);
+      setStep(2);
+      return;
+    }
     setPdfBusy(mode);
     try {
-      const blob = await elementToPdfBlob(docRef.current);
+      const [{ pdf }, { QabalaPdf }] = await Promise.all([
+        import('@react-pdf/renderer'),
+        import('./documents/QabalaPdf'),
+      ]);
+      const blob = await pdf(
+        <QabalaPdf data={getValues() as QabalaFormData} docType={docType} tr={tr} />,
+      ).toBlob();
       const filename = `qabala-${docType}.pdf`;
       if (mode === 'whatsapp') await sharePdfFile(blob, filename, tr.shareText);
       else downloadBlob(blob, filename);
+    } catch {
+      setPdfError(tr.pdfError);
     } finally {
       setPdfBusy(null);
     }
@@ -321,8 +335,12 @@ function QabalaWorkflowInner({ docType, isDemo = false }: QabalaWorkflowProps) {
               </div>
             </div>
 
+            {pdfError && step === 3 && (
+              <p className="mt-4 text-sm text-amber-200 text-center" dir={tr.dir}>{pdfError}</p>
+            )}
+
             {/* Navigation buttons */}
-            <div className={`flex mt-5 gap-3 ${tr.dir === 'rtl' ? 'flex-row-reverse' : ''}`}>
+            <div className={`flex mt-5 gap-3 flex-wrap ${tr.dir === 'rtl' ? 'flex-row-reverse' : ''}`}>
               {step > 0 && (
                 <button
                   onClick={handleBack}
@@ -340,13 +358,28 @@ function QabalaWorkflowInner({ docType, isDemo = false }: QabalaWorkflowProps) {
                   {tr.buttons.next}
                 </button>
               ) : (
-                <button
-                  onClick={handleGeneratePreview}
-                  className="px-6 py-2.5 rounded-xl bg-[#0A3D22] text-white border border-[#C8972A] hover:bg-[#145C35] transition-all font-semibold text-sm shadow-lg"
-                  style={{ fontFamily: 'var(--font-amiri-var), Amiri, serif' }}
-                >
-                  {tr.buttons.preview}
-                </button>
+                <>
+                  <button
+                    onClick={handleGeneratePreview}
+                    className="px-5 py-2.5 rounded-xl bg-white/10 text-white border border-white/20 hover:bg-white/20 transition-all font-medium text-sm"
+                  >
+                    {tr.buttons.preview}
+                  </button>
+                  <button
+                    onClick={() => handlePdf('whatsapp')}
+                    disabled={pdfBusy !== null}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#128C7E] text-white hover:bg-[#0E6F64] transition-all font-semibold text-sm disabled:opacity-60"
+                  >
+                    {pdfBusy === 'whatsapp' ? '...' : tr.buttons.whatsapp}
+                  </button>
+                  <button
+                    onClick={() => handlePdf('download')}
+                    disabled={pdfBusy !== null}
+                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#C8972A] text-white hover:bg-[#B8882A] transition-all font-semibold text-sm shadow-lg shadow-[#C8972A]/20 disabled:opacity-60"
+                  >
+                    {pdfBusy === 'download' ? '...' : tr.buttons.download}
+                  </button>
+                </>
               )}
             </div>
           </>
@@ -398,6 +431,9 @@ function QabalaWorkflowInner({ docType, isDemo = false }: QabalaWorkflowProps) {
                 {tr.buttons.newDoc}
               </Link>
             </div>
+            {pdfError && (
+              <p className="no-print mb-4 text-sm text-amber-800 text-center" dir={tr.dir}>{pdfError}</p>
+            )}
 
             {/* Document preview */}
             <div className="overflow-auto">
